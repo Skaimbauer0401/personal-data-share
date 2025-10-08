@@ -1,0 +1,6 @@
+# Project-wide ignores
+# Ignore JetBrains IDE project settings directory
+.idea/
+
+# Ignore the module file for this project
+Indizies_viewer.iml
