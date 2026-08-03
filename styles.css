@@ -1,0 +1,565 @@
+:root {
+    --bg: #f4f6fa;
+    --panel: #ffffff;
+    --text: #111827;
+    --muted: #6b7280;
+    --border: #e3e7ee;
+    --accent: #2563eb;
+    --accent-dark: #1d4ed8;
+    --danger: #dc2626;
+    --ok: #059669;
+    --radius: 14px;
+    --shadow: 0 8px 24px rgba(15, 23, 42, .06);
+    color-scheme: light;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+}
+
+body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.45;
+    overflow-x: hidden;
+    -webkit-tap-highlight-color: rgba(37, 99, 235, .12);
+}
+
+.wrap {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 28px 16px 48px;
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+    padding-bottom: calc(48px + env(safe-area-inset-bottom));
+}
+
+.page-head h1 {
+    margin: 0 0 6px;
+    font-size: 30px;
+    letter-spacing: -.3px;
+}
+
+.page-head .sub {
+    margin: 0 0 24px;
+    color: var(--muted);
+    font-size: 15px;
+    max-width: 62ch;
+}
+
+.card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 22px;
+    margin-bottom: 18px;
+}
+
+.card h2 {
+    margin: 0 0 16px;
+    font-size: 17px;
+    letter-spacing: -.1px;
+}
+
+.card-head {
+    margin-bottom: 16px;
+}
+
+.card-head h2 {
+    margin-bottom: 4px;
+}
+
+.hint {
+    margin: 0;
+    color: var(--muted);
+    font-size: 13px;
+}
+
+/* ---------- form grid ---------- */
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: 16px 14px;
+}
+
+.field, .check {
+    grid-column: span 12;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.field > span {
+    font-size: 13px;
+    color: var(--muted);
+}
+
+.req {
+    color: var(--danger);
+    font-weight: 600;
+}
+
+@media (min-width: 700px) {
+    .col-3 { grid-column: span 3; }
+    .col-6 { grid-column: span 6; }
+    .col-9 { grid-column: span 9; }
+    .col-12 { grid-column: span 12; }
+}
+
+input, select, textarea, button {
+    font-family: inherit;
+    /* 16px floor: anything smaller makes iOS Safari zoom the page on focus. */
+    font-size: 16px;
+    color: var(--text);
+}
+
+input, select, textarea {
+    width: 100%;
+    max-width: 100%;
+    min-height: 46px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 11px 13px;
+    outline: none;
+    transition: border-color .15s, box-shadow .15s;
+}
+
+/* iOS gives date/time/select intrinsic sizing that ignores width and centers the value. */
+input[type="date"], input[type="time"], select {
+    -webkit-appearance: none;
+    appearance: none;
+    text-align: left;
+}
+
+select {
+    padding-right: 38px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 18px;
+}
+
+textarea {
+    resize: vertical;
+    min-height: 96px;
+}
+
+input:focus, select:focus, textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, .14);
+}
+
+input.invalid, textarea.invalid, select.invalid {
+    border-color: var(--danger);
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, .12);
+}
+
+.check {
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    align-self: end;
+    min-height: 44px;
+    padding-bottom: 4px;
+    cursor: pointer;
+}
+
+.check input {
+    width: 22px;
+    height: 22px;
+    min-height: 0;
+    flex: none;
+    accent-color: var(--accent);
+}
+
+.check span {
+    font-size: 15px;
+}
+
+/* ---------- buttons ---------- */
+
+.btn {
+    border: 1px solid var(--border);
+    background: #fff;
+    border-radius: 11px;
+    min-height: 46px;
+    padding: 11px 16px;
+    cursor: pointer;
+    touch-action: manipulation;
+    transition: background .15s, border-color .15s, transform .06s;
+}
+
+@media (hover: hover) {
+    .btn:hover {
+        background: #f9fafb;
+    }
+
+    .btn.primary:hover {
+        background: var(--accent-dark);
+    }
+}
+
+.btn:active {
+    transform: translateY(1px);
+}
+
+.btn.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+    font-weight: 600;
+}
+
+.btn.ghost {
+    background: transparent;
+}
+
+.btn.danger {
+    color: var(--danger);
+}
+
+.btn:disabled {
+    opacity: .55;
+    cursor: not-allowed;
+}
+
+.actions-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.status {
+    margin: 10px 0 0;
+    min-height: 1.2em;
+    font-size: 13px;
+    color: var(--ok);
+}
+
+.status.error {
+    color: var(--danger);
+}
+
+.status.busy {
+    color: var(--muted);
+}
+
+/* ---------- people ---------- */
+
+.people-list:empty {
+    display: none;
+}
+
+.people-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-bottom: 14px;
+}
+
+.person-card {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    background: #fbfcfe;
+}
+
+.person-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.person-title {
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.icon-btn {
+    border: 0;
+    background: transparent;
+    color: var(--danger);
+    font-size: 14px;
+    cursor: pointer;
+    min-height: 44px;
+    padding: 4px 10px;
+    border-radius: 8px;
+    touch-action: manipulation;
+}
+
+@media (hover: hover) {
+    .icon-btn:hover {
+        background: rgba(220, 38, 38, .08);
+    }
+}
+
+/* ---------- photos ---------- */
+
+.dropzone {
+    border: 2px dashed #cbd5e1;
+    border-radius: 12px;
+    padding: 26px 16px;
+    text-align: center;
+    color: var(--muted);
+    cursor: pointer;
+    touch-action: manipulation;
+    transition: border-color .15s, background .15s;
+}
+
+.dropzone:focus-visible, .dropzone.over {
+    border-color: var(--accent);
+    background: rgba(37, 99, 235, .04);
+    color: var(--accent);
+    outline: none;
+}
+
+@media (hover: hover) {
+    .dropzone:hover {
+        border-color: var(--accent);
+        background: rgba(37, 99, 235, .04);
+        color: var(--accent);
+    }
+}
+
+/* Dragging is meaningless on touch devices. */
+@media (hover: none) {
+    .drag-only {
+        display: none;
+    }
+}
+
+.dropzone p {
+    margin: 8px 0 2px;
+    color: var(--text);
+    font-size: 15px;
+}
+
+.dropzone small {
+    font-size: 12px;
+}
+
+.photo-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 12px;
+    margin-top: 14px;
+}
+
+.photo-grid:empty {
+    display: none;
+}
+
+.photo-tile {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+}
+
+.photo-tile img {
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+    display: block;
+    background: #eef1f6;
+}
+
+.photo-meta {
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.photo-meta input {
+    min-height: 42px;
+    padding: 7px 9px;
+    border-radius: 8px;
+}
+
+.photo-foot {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.photo-foot span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+/* ---------- share dialog ---------- */
+
+.share-dialog {
+    border: 0;
+    border-radius: 16px;
+    padding: 0;
+    width: min(560px, calc(100% - 32px));
+    max-height: calc(100vh - 32px);
+    max-height: calc(100dvh - 32px);
+    overflow: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    box-shadow: 0 24px 60px rgba(15, 23, 42, .28);
+}
+
+.share-dialog::backdrop {
+    background: rgba(15, 23, 42, .45);
+}
+
+/* Mobile Safari keeps scrolling the page behind an open modal. */
+body:has(dialog[open]) {
+    overflow: hidden;
+}
+
+.share-inner {
+    padding: 22px;
+}
+
+.share-inner h2 {
+    margin: 0 0 6px;
+    font-size: 19px;
+    outline: none;
+}
+
+.share-inner .hint {
+    margin-bottom: 16px;
+}
+
+.channels {
+    display: grid;
+    gap: 10px;
+    margin-top: 18px;
+}
+
+.channel {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    min-height: 56px;
+    text-align: left;
+    border: 1px solid var(--border);
+    background: #fff;
+    border-radius: 12px;
+    padding: 12px 14px;
+    cursor: pointer;
+    touch-action: manipulation;
+    transition: border-color .15s, background .15s;
+}
+
+@media (hover: hover) {
+    .channel:hover:not(:disabled) {
+        border-color: var(--accent);
+        background: rgba(37, 99, 235, .04);
+    }
+}
+
+.channel:disabled {
+    opacity: .5;
+    cursor: not-allowed;
+}
+
+.channel-icon {
+    font-size: 22px;
+    line-height: 1;
+}
+
+.channel-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.channel-text small {
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.close-btn {
+    margin-top: 16px;
+    width: 100%;
+}
+
+.page-foot {
+    text-align: center;
+    color: var(--muted);
+    font-size: 12px;
+    margin-top: 24px;
+}
+
+/* ---------- phones ---------- */
+
+@media (max-width: 599px) {
+    .wrap {
+        padding-top: 20px;
+    }
+
+    .page-head h1 {
+        font-size: 24px;
+    }
+
+    .card {
+        padding: 16px;
+        border-radius: 12px;
+    }
+
+    .person-card {
+        padding: 12px;
+    }
+
+    .grid {
+        gap: 14px 12px;
+    }
+
+    /* Full-width targets are easier to hit with a thumb than a wrapped row. */
+    .actions-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .actions-row .btn {
+        width: 100%;
+    }
+
+    .dropzone {
+        padding: 20px 12px;
+    }
+
+    .photo-grid {
+        grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+        gap: 10px;
+    }
+
+    /* Bottom sheet: reachable by thumb and immune to keyboard-shrunk viewports. */
+    .share-dialog {
+        width: 100%;
+        max-width: none;
+        margin: auto auto 0;
+        border-radius: 18px 18px 0 0;
+        max-height: 92dvh;
+    }
+
+    .share-inner {
+        padding: 18px 16px calc(18px + env(safe-area-inset-bottom));
+    }
+}

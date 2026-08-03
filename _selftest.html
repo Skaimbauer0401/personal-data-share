@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="de">
+<head><meta charset="utf-8"/><title>selftest</title></head>
+<body>
+<pre id="log">running</pre>
+<iframe id="frame" src="index.html" style="width:1100px;height:900px;border:0"></iframe>
+<script>
+    const log = [];
+    const out = document.getElementById('log');
+    const frame = document.getElementById('frame');
+    const done = () => { out.textContent = log.join('\n'); };
+
+    frame.addEventListener('load', async () => {
+        const w = frame.contentWindow;
+        const d = frame.contentDocument;
+        w.addEventListener('error', e => log.push('PAGE ERROR: ' + e.message));
+        w.addEventListener('unhandledrejection', e => log.push('REJECTION: ' + e.reason));
+
+        // Capture downloads instead of actually saving.
+        const captured = [];
+        const origCreate = w.URL.createObjectURL.bind(w.URL);
+        w.URL.createObjectURL = blob => { captured.push(blob); return origCreate(blob); };
+        w.HTMLAnchorElement.prototype.click = function () { log.push('download click -> ' + this.download); };
+
+        const set = (name, value) => {
+            const el = d.forms['report-form'].elements[name];
+            el.value = value;
+            el.dispatchEvent(new w.Event('input', {bubbles: true}));
+        };
+
+        try {
+            log.push('libs: jspdf=' + (typeof w.jspdf) + ' buildReportPdf=' + (typeof w.buildReportPdf) + ' AGENT=' + (typeof w.AGENT));
+
+            // 1. Validation must block an empty form.
+            d.getElementById('download-btn').click();
+            await new Promise(r => setTimeout(r, 200));
+            log.push('empty-form status: ' + d.getElementById('status').textContent);
+            log.push('invalid fields marked: ' + d.querySelectorAll('.invalid').length);
+
+            // 2. Fill required + optional fields.
+            set('damageType', 'Handy / Elektronik');
+            set('damageDate', '2026-07-28');
+            set('damageTime', '14:35');
+            set('damagePlace', 'Bahnhofstraße 12, München');
+            set('policyNumber', 'VS-4711');
+            set('damageAmount', 'ca. 890 €');
+            set('firstName', 'Samuel');
+            set('lastName', 'Bauer');
+            set('phone', '+49 170 1234567');
+            set('email', 'test@example.com');
+            set('courseOfEvents', 'Das Handy fiel vom Tisch auf den Steinboden. Display gesplittert. Süß Öl Ärger.');
+            d.forms['report-form'].elements['policeInformed'].checked = true;
+
+            // 3. Add two people and fill one.
+            d.getElementById('add-person-btn').click();
+            d.getElementById('add-person-btn').click();
+            const cards = d.querySelectorAll('.person-card');
+            log.push('person cards: ' + cards.length + ' titles=' +
+                [...d.querySelectorAll('.person-title')].map(t => t.textContent).join('/'));
+            cards[0].querySelector('[data-field="firstName"]').value = 'Anna';
+            cards[0].querySelector('[data-field="lastName"]').value = 'Müller';
+            cards[0].querySelector('[data-field="note"]').value = 'Hat alles gesehen.';
+            // second card stays empty -> must be dropped from the report
+
+            // 4. Add a real photo through the file input.
+            const canvas = d.createElement('canvas');
+            canvas.width = 800; canvas.height = 600;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#c33'; ctx.fillRect(0, 0, 800, 600);
+            ctx.fillStyle = '#fff'; ctx.font = '48px sans-serif'; ctx.fillText('Schaden', 40, 300);
+            const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
+
+            // Probe the decode path directly so we can tell a hang from a failure.
+            try {
+                const bmp = await w.createImageBitmap(blob, {imageOrientation: 'from-image'});
+                log.push('probe createImageBitmap: ok ' + bmp.width + 'x' + bmp.height);
+            } catch (e) {
+                log.push('probe createImageBitmap: FAILED ' + e);
+            }
+
+            const file = new w.File([blob], 'schaden.png', {type: 'image/png'});
+            const dt = new w.DataTransfer();
+            dt.items.add(file);
+            const input = d.getElementById('photo-input');
+            input.files = dt.files;
+            input.dispatchEvent(new w.Event('change', {bubbles: true}));
+
+            const until = async (label, check, ms = 8000) => {
+                const start = Date.now();
+                while (Date.now() - start < ms) {
+                    if (check()) { log.push(label + ': ok after ' + (Date.now() - start) + 'ms'); return true; }
+                    await new Promise(r => setTimeout(r, 50));
+                }
+                log.push(label + ': TIMEOUT after ' + ms + 'ms');
+                return false;
+            };
+
+            await until('photo processed', () => d.querySelectorAll('.photo-tile').length > 0);
+            log.push('photo tiles: ' + d.querySelectorAll('.photo-tile').length);
+            log.push('photo status: ' + d.getElementById('status').textContent);
+            const capInput = d.querySelector('.photo-meta input');
+            if (capInput) {
+                capInput.value = 'Displayschaden';
+                capInput.dispatchEvent(new w.Event('input', {bubbles: true}));
+            }
+
+            // 5. Download path.
+            captured.length = 0;
+            d.getElementById('download-btn').click();
+            await until('pdf built', () => captured.length > 0);
+            log.push('download status: ' + d.getElementById('status').textContent);
+            log.push('blobs: ' + captured.length + ' type=' + (captured[0] && captured[0].type) +
+                ' size=' + (captured[0] && captured[0].size));
+
+            // 6. Share dialog opens and configures channels.
+            d.getElementById('send-btn').click();
+            await new Promise(r => setTimeout(r, 200));
+            const dlg = d.getElementById('share-dialog');
+            log.push('dialog open: ' + dlg.open);
+            log.push('share hint: ' + d.getElementById('share-status').textContent);
+            log.push('direct-share disabled: ' + d.getElementById('channel-share').disabled);
+            log.push('recipient email prefill: "' + d.getElementById('recipient-email').value + '"');
+
+            log.push('DONE');
+        } catch (err) {
+            log.push('TEST ERROR: ' + (err && err.stack || err));
+        }
+        done();
+    });
+</script>
+</body>
+</html>
