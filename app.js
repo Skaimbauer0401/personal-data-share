@@ -12,10 +12,6 @@
     const photoGrid = document.getElementById('photo-grid');
     const photoInput = document.getElementById('photo-input');
     const dropzone = document.getElementById('dropzone');
-    const shareDialog = document.getElementById('share-dialog');
-    const shareStatus = document.getElementById('share-status');
-    const recipientEmail = document.getElementById('recipient-email');
-    const recipientPhone = document.getElementById('recipient-phone');
 
     const photos = [];
     let photoSeq = 0;
@@ -43,6 +39,7 @@
             renumberPeople();
         });
         peopleList.appendChild(card);
+        dropPrepared();
         renumberPeople();
         card.querySelector('select').focus();
     }
@@ -147,6 +144,7 @@
             remove.addEventListener('click', () => {
                 const at = photos.indexOf(photo);
                 if (at > -1) photos.splice(at, 1);
+                dropPrepared();
                 renderPhotos();
             });
 
@@ -171,6 +169,7 @@
             }
         }
         renderPhotos();
+        dropPrepared();
         if (failed) {
             setStatus(status, `${failed} Foto(s) konnten nicht gelesen werden (z. B. HEIC-Format). Bitte als JPG speichern.`, 'error');
         } else {
@@ -285,193 +284,88 @@
         }
     }
 
-    /* ---------------- sharing ---------------- */
+    /* ---------------- sending ---------------- */
 
     function messageText(report) {
         const name = [report.reporter.firstName, report.reporter.lastName].filter(Boolean).join(' ');
+        const agent = (window.AGENT && window.AGENT.name) || '';
         const lines = ['Schadensmeldung' + (name ? ' von ' + name : '')];
+        if (agent) lines.push('F\u00fcr: ' + agent);
         if (report.damage.date) {
             lines.push('Schadendatum: ' + window.formatDateDe(report.damage.date)
                 + (report.damage.time ? ', ' + report.damage.time + ' Uhr' : ''));
         }
         if (report.damage.type) lines.push('Art: ' + report.damage.type);
         if (report.photos.length) lines.push('Fotos: ' + report.photos.length);
-        lines.push('', 'Die vollständige Meldung befindet sich im PDF im Anhang.');
+        lines.push('', 'Die vollst\u00e4ndige Meldung befindet sich im angeh\u00e4ngten PDF.');
         return lines.join('\n');
     }
 
-    function canShareFiles(file) {
-        try {
-            return Boolean(navigator.canShare && navigator.canShare({files: [file]}));
-        } catch (_) {
-            return false;
+    // navigator.share exists only in a secure context (HTTPS or localhost), so a page
+    // opened from a file:// path or over plain http:// on the local network has no share
+    // sheet at all. Name the actual cause instead of blaming the browser.
+    function shareBlockedReason(file) {
+        if (!window.isSecureContext) {
+            return 'Zum Senden muss die Seite \u00fcber HTTPS ge\u00f6ffnet sein (\u201efile://\u201c '
+                + 'oder eine http-Adresse im WLAN reichen nicht).';
         }
-    }
-
-    // Probed with a dummy PDF so the answer is available synchronously: the dialog needs it
-    // before a report exists, and the click handler needs it before the PDF build starts.
-    function supportsFileShare() {
-        try {
-            return canShareFiles(new File([new Blob(['x'])], 'test.pdf', {type: 'application/pdf'}));
-        } catch (_) {
-            return false;
+        if (!navigator.share || !navigator.canShare) {
+            return 'Dieser Browser kennt die Teilen-Funktion nicht \u2013 am PC z. B. Firefox.';
         }
-    }
-
-    function phoneDigits(value) {
-        return (value || '').replace(/[^\d]/g, '');
-    }
-
-    function setChannelsBusy(on) {
-        shareDialog.querySelectorAll('.channel').forEach(button => {
-            if (on) {
-                button.dataset.wasDisabled = button.disabled ? '1' : '';
-                button.disabled = true;
-            } else {
-                button.disabled = button.dataset.wasDisabled === '1';
-            }
-        });
-    }
-
-    function setShareStatusLink(message, url, linkText) {
-        setStatus(shareStatus, message + ' ');
-        const link = document.createElement('a');
-        link.href = url;
-        link.target = '_blank';
-        link.rel = 'noopener';
-        link.textContent = linkText;
-        shareStatus.appendChild(link);
-    }
-
-    // A popup has to be claimed inside the click that started the flow: building the PDF
-    // outlasts the transient user activation (Safari drops it at the first await), so a
-    // window.open() afterwards is silently refused. Reserve a blank tab up front instead
-    // and point it at the real URL once the PDF is ready.
-    function reserveTab() {
-        try {
-            const tab = window.open('', '_blank');
-            if (tab) tab.opener = null;
-            return tab;
-        } catch (_) {
-            return null;
+        if (!navigator.canShare({files: [file]})) {
+            return 'Dieser Browser kann diese Datei nicht weitergeben.';
         }
+        return '';
     }
 
-    function openExternal(tab, url, linkText, message) {
-        if (tab && !tab.closed) {
-            tab.location.replace(url);
-        } else if (!window.open(url, '_blank', 'noopener')) {
-            // Popup blocked and no reserved tab left: give the user something to tap.
-            setShareStatusLink(message, url, linkText);
+    // The PDF for the form as it currently stands. Kept because iOS Safari drops the tap's
+    // user activation at the first await: once a PDF is ready, the next tap can reach
+    // navigator.share() synchronously and the share sheet opens.
+    let prepared = null;
+
+    function dropPrepared() {
+        prepared = null;
+    }
+
+    async function preparePdf() {
+        const {report, blob, filename} = await generatePdf();
+        return {
+            blob,
+            filename,
+            file: new File([blob], filename, {type: 'application/pdf'}),
+            text: messageText(report)
+        };
+    }
+
+    function fallbackToDownload(data, reason) {
+        downloadBlob(data.blob, data.filename);
+        setStatus(status, reason + ' Das PDF \u201e' + data.filename
+            + '\u201c wurde stattdessen heruntergeladen.' + sizeNote(data.blob), 'error');
+    }
+
+    // `retryable` marks the attempt that had to build the PDF first; a refusal there is
+    // usually just the spent user activation, so we ask for one more tap instead of giving up.
+    async function shareReport(data, retryable) {
+        const blocked = shareBlockedReason(data.file);
+        if (blocked) {
+            fallbackToDownload(data, blocked);
             return;
         }
-        setStatus(shareStatus, message);
-    }
-
-    // Returns false when the browser refuses the share sheet \u2014 iOS drops the tap's user
-    // activation while the PDF is built, and some browsers reject large files or lack the
-    // API entirely \u2014 so the caller can fall back to a download. A real cancel still throws.
-    async function shareFile(file, filename, text) {
         try {
-            await navigator.share({files: [file], title: filename, text});
-            return true;
-        } catch (error) {
-            if (error && error.name === 'AbortError') throw error;
-            return false;
-        }
-    }
-
-    async function handleChannel(channel) {
-        if (busy) return;
-        busy = true;
-        setChannelsBusy(true);
-        setStatus(shareStatus, 'PDF wird erstellt\u2026', 'busy');
-
-        // Only reserve a tab for the route we will actually take, otherwise the native
-        // share sheet would leave a stray blank tab behind on mobile.
-        const usesLink = channel === 'whatsapp' || channel === 'signal';
-        const tab = usesLink && !supportsFileShare() ? reserveTab() : null;
-        let tabUsed = false;
-
-        try {
-            const {report, blob, filename} = await generatePdf();
-            const file = new File([blob], filename, {type: 'application/pdf'});
-            const text = messageText(report);
-            const digits = phoneDigits(recipientPhone.value);
-
-            if (channel === 'share') {
-                if (await shareFile(file, filename, text)) {
-                    setStatus(shareStatus, 'Geteilt.');
-                } else {
-                    downloadBlob(blob, filename);
-                    setStatus(shareStatus, `PDF \u201e${filename}\u201c wurde heruntergeladen. Bitte manuell anh\u00e4ngen.${sizeNote(blob)}`);
-                }
-                return;
-            }
-
-            // Native share attaches the real file, so prefer it on devices that support it.
-            if (channel !== 'email' && canShareFiles(file) && await shareFile(file, filename, text)) {
-                setStatus(shareStatus, 'Geteilt.');
-                return;
-            }
-
-            downloadBlob(blob, filename);
-            // Navigating to mailto: or pointing the tab at the chat in the same tick can
-            // cancel the blob download in Chrome, so let it commit first.
-            await new Promise(resolve => setTimeout(resolve, 600));
-
-            if (channel === 'email') {
-                const subject = 'Schadensmeldung' + (report.damage.date ? ' vom ' + window.formatDateDe(report.damage.date) : '');
-                // Keep "@" literal: some desktop mail clients choke on a percent-encoded address.
-                const address = encodeURIComponent(recipientEmail.value.trim().replace(/\s+/g, '')).replace(/%40/g, '@');
-                window.location.href = `mailto:${address}`
-                    + `?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(text)}`;
-                setStatus(shareStatus, `Text vorbereitet. Das PDF \u201e${filename}\u201c liegt in Ihren Downloads \u2013 bitte in der E-Mail anh\u00e4ngen.${sizeNote(blob)}`);
-            } else if (channel === 'whatsapp') {
-                const url = (digits ? `https://wa.me/${digits}?text=` : 'https://wa.me/?text=') + encodeURIComponent(text);
-                tabUsed = true;
-                openExternal(tab, url, 'WhatsApp \u00f6ffnen',
-                    `Text vorbereitet. Das PDF \u201e${filename}\u201c liegt in Ihren Downloads \u2013 bitte im Chat als Datei anh\u00e4ngen.`);
-            } else if (channel === 'signal') {
-                const note = `Text vorbereitet. Das PDF \u201e${filename}\u201c liegt in Ihren Downloads \u2013 bitte im Chat als Datei anh\u00e4ngen.`;
-                if (digits) {
-                    tabUsed = true;
-                    openExternal(tab, `https://signal.me/#p/+${digits}`, 'Signal \u00f6ffnen', note);
-                } else {
-                    setStatus(shareStatus, note + ' Ohne Telefonnummer kann Signal nicht direkt ge\u00f6ffnet werden.');
-                }
-            }
+            await navigator.share({files: [data.file], title: data.filename, text: data.text});
+            setStatus(status, 'Gesendet.');
+            dropPrepared();
         } catch (error) {
             if (error && error.name === 'AbortError') {
-                setStatus(shareStatus, 'Senden abgebrochen.', 'busy');
-            } else {
-                setStatus(shareStatus, 'Fehler beim Senden: ' + (error ? error.message : 'unbekannt'), 'error');
+                setStatus(status, 'Senden abgebrochen.');
+                return;
             }
-        } finally {
-            if (tab && !tabUsed && !tab.closed) tab.close();
-            setChannelsBusy(false);
-            busy = false;
+            if (retryable) {
+                setStatus(status, 'Das PDF ist fertig \u2013 bitte noch einmal auf \u201eSenden\u201c tippen.', 'busy');
+                return;
+            }
+            fallbackToDownload(data, 'Das Teilen wurde vom Ger\u00e4t abgelehnt.');
         }
-    }
-
-    function openShareDialog() {
-        if (!validate()) return;
-        const agent = window.AGENT || {};
-        if (!recipientEmail.value) recipientEmail.value = agent.email || '';
-        if (!recipientPhone.value) recipientPhone.value = agent.phone || '';
-
-        const supported = supportsFileShare();
-        const shareButton = document.getElementById('channel-share');
-        shareButton.disabled = !supported;
-        document.getElementById('channel-share-note').textContent = supported
-            ? 'PDF wird angeh\u00e4ngt \u2013 Sie w\u00e4hlen die App'
-            : 'Von diesem Browser nicht unterst\u00fctzt';
-
-        setStatus(shareStatus, supported
-            ? '\u201eTeilen\u201c \u00f6ffnet die App-Auswahl Ihres Ger\u00e4ts mit dem PDF im Anhang.'
-            : 'Dieser Browser kann keine Datei weitergeben \u2013 bitte das PDF herunterladen und selbst anh\u00e4ngen.',
-            'busy');
-        shareDialog.showModal();
     }
 
     /* ---------------- events ---------------- */
@@ -513,16 +407,18 @@
         });
     });
 
-    document.getElementById('send-btn').addEventListener('click', openShareDialog);
-
-    shareDialog.querySelectorAll('.channel').forEach(button => {
-        button.addEventListener('click', () => handleChannel(button.dataset.channel));
-    });
-
-    // The dialog form is method="dialog", so Enter in a recipient field would submit it
-    // and close the dialog before anything was sent.
-    shareDialog.addEventListener('keydown', event => {
-        if (event.key === 'Enter' && event.target.tagName === 'INPUT') event.preventDefault();
+    const sendBtn = document.getElementById('send-btn');
+    sendBtn.addEventListener('click', () => {
+        if (!validate()) return;
+        if (prepared) {
+            // No await before this call, so the tap's activation still counts.
+            shareReport(prepared, false);
+            return;
+        }
+        withBusy(sendBtn, 'PDF wird erstellt\u2026', async () => {
+            prepared = await preparePdf();
+            await shareReport(prepared, true);
+        });
     });
 
     document.getElementById('reset-btn').addEventListener('click', () => {
@@ -530,6 +426,7 @@
         form.reset();
         peopleList.textContent = '';
         photos.length = 0;
+        dropPrepared();
         renderPhotos();
         form.querySelectorAll('.invalid').forEach(el => el.classList.remove('invalid'));
         setStatus(status, 'Formular zurückgesetzt.');
@@ -538,7 +435,10 @@
 
     form.addEventListener('input', event => {
         event.target.classList.remove('invalid');
+        dropPrepared();
     });
+
+    form.addEventListener('change', dropPrepared);
 
     form.addEventListener('submit', event => event.preventDefault());
 })();

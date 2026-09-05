@@ -1,6 +1,7 @@
-// Kontaktdaten des Versicherungsvertreters, an den Meldungen gehen.
-// Diese Werte sind im Sende-Dialog vorausgefüllt und können dort geändert werden.
-// Telefonnummer im internationalen Format angeben (z. B. +4917012345678) — nötig für WhatsApp und Signal.
+// Kontaktdaten des Versicherungsvertreters.
+// Der Name erscheint im Begleittext der Meldung. Empfänger und App werden beim
+// Senden im Teilen-Dialog des Geräts ausgewählt — E-Mail und Telefonnummer
+// werden daher nicht mehr zum Versand benötigt.
 window.AGENT = {
     name: 'Ihr Versicherungsbüro',
     email: '',

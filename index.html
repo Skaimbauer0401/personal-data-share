@@ -150,55 +150,6 @@
     <footer class="page-foot">Programmiert von Samuel Bauer</footer>
 </div>
 
-<dialog id="share-dialog" class="share-dialog">
-    <form method="dialog" class="share-inner">
-        <!-- Focus target for showModal(): focusing an input instead pops up the mobile keyboard. -->
-        <h2 tabindex="-1" autofocus>Schadensmeldung senden</h2>
-        <p class="hint" id="share-hint">Das PDF wird auf Ihrem Gerät erstellt und anschließend weitergegeben.</p>
-
-        <div class="grid">
-            <label class="field col-6">
-                <span>E-Mail des Empfängers</span>
-                <input id="recipient-email" type="email" inputmode="email"/>
-            </label>
-            <label class="field col-6">
-                <span>Telefonnummer des Empfängers</span>
-                <input id="recipient-phone" type="tel" inputmode="tel" placeholder="+49 170 1234567"/>
-            </label>
-        </div>
-
-        <div class="channels">
-            <button type="button" class="channel primary" data-channel="share" id="channel-share">
-                <span class="channel-icon">📤</span>
-                <span class="channel-text"><b>Teilen</b><small id="channel-share-note">PDF wird angehängt – Sie wählen die App</small></span>
-            </button>
-        </div>
-
-        <!-- mailto: and wa.me links cannot carry an attachment (no browser or app supports
-             it), so these routes send text only and the PDF has to be attached by hand. -->
-        <p class="hint channels-note" id="channels-note">Ohne Anhang – das PDF wird heruntergeladen und muss
-            selbst angehängt werden:</p>
-
-        <div class="channels">
-            <button type="button" class="channel" data-channel="email">
-                <span class="channel-icon">✉️</span>
-                <span class="channel-text"><b>E-Mail</b><small>Öffnet Ihr Mailprogramm, nur mit Text</small></span>
-            </button>
-            <button type="button" class="channel" data-channel="whatsapp">
-                <span class="channel-icon">💬</span>
-                <span class="channel-text"><b>WhatsApp</b><small>Öffnet den Chat, nur mit Text</small></span>
-            </button>
-            <button type="button" class="channel" data-channel="signal">
-                <span class="channel-icon">🔒</span>
-                <span class="channel-text"><b>Signal</b><small>Öffnet den Chat, nur mit Text</small></span>
-            </button>
-        </div>
-
-        <p class="status" id="share-status" role="status" aria-live="polite"></p>
-        <button type="submit" class="btn ghost close-btn">Schließen</button>
-    </form>
-</dialog>
-
 <template id="person-template">
     <div class="person-card">
         <div class="person-head">

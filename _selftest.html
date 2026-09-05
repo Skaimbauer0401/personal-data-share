@@ -112,70 +112,60 @@
             log.push('blobs: ' + captured.length + ' type=' + (captured[0] && captured[0].type) +
                 ' size=' + (captured[0] && captured[0].size));
 
-            // 6. Share dialog opens and configures channels.
-            d.getElementById('send-btn').click();
-            await new Promise(r => setTimeout(r, 200));
-            const dlg = d.getElementById('share-dialog');
-            log.push('dialog open: ' + dlg.open);
-            log.push('share hint: ' + d.getElementById('share-status').textContent);
-            log.push('direct-share disabled: ' + d.getElementById('channel-share').disabled);
-            log.push('recipient email prefill: "' + d.getElementById('recipient-email').value + '"');
+            // 6. Sending: one button, straight to the OS share sheet.
+            const st = () => d.getElementById('status').textContent;
+            const sendBtn = d.getElementById('send-btn');
+            const settled = () => !sendBtn.disabled;
 
-            // 7. Send channels. Stub the outward-facing APIs so nothing really leaves.
-            const opened = [];
-            w.open = (url) => { opened.push(url); return {closed: false, opener: null, location: {replace: u => opened.push('replace:' + u)}, close: () => {}}; };
-            // location.href cannot be stubbed (unforgeable); a mailto: with no registered
-            // handler is a no-op in this browser, so let it fire and just watch the status.
+            // 6a. Share sheet accepts the file.
+            let shared = null;
+            Object.defineProperty(w.Navigator.prototype, 'canShare', {value: () => true, configurable: true});
+            Object.defineProperty(w.Navigator.prototype, 'share', {
+                value: d => { shared = d; return Promise.resolve(); }, configurable: true
+            });
+            sendBtn.click();
+            await until('send settled', settled);
+            log.push('SHARE status: ' + st());
+            log.push('SHARE got file: ' + (shared && shared.files && shared.files.length === 1
+                ? shared.files[0].name + ' / ' + shared.files[0].type : 'NONE'));
+            log.push('SHARE text: ' + JSON.stringify(shared && shared.text ? shared.text.split('\n')[0] : ''));
 
-            d.getElementById('recipient-email').value = 'berater@example.com';
-            d.getElementById('recipient-phone').value = '+49 170 1234567';
+            // 6b. First tap refused (iOS activation loss) -> ask for a second tap, which works.
+            let calls = 0;
+            Object.defineProperty(w.Navigator.prototype, 'share', {
+                value: dat => {
+                    calls++;
+                    if (calls === 1) return Promise.reject(Object.assign(new Error('x'), {name: 'NotAllowedError'}));
+                    shared = dat;
+                    return Promise.resolve();
+                }, configurable: true
+            });
+            set('damagePlace', 'Neuer Ort');   // invalidates the prepared PDF
+            sendBtn.click();
+            await until('retry prompt', () => /noch einmal/.test(st()));
+            log.push('RETRY status: ' + st());
+            sendBtn.click();
+            await until('retry settled', () => /Gesendet/.test(st()));
+            log.push('RETRY second tap: ' + st() + ' (share calls=' + calls + ')');
 
-            const shareStatusText = () => d.getElementById('share-status').textContent;
-            const idle = () => ![...d.querySelectorAll('.channel')].some(b => b.dataset.wasDisabled !== undefined && b.disabled && b.dataset.wasDisabled === '')
-                && !shareStatusText().includes('wird erstellt');
+            // 6c. User cancels the sheet.
+            Object.defineProperty(w.Navigator.prototype, 'share', {
+                value: () => Promise.reject(Object.assign(new Error('x'), {name: 'AbortError'})), configurable: true
+            });
+            set('damagePlace', 'Wieder anders');
+            sendBtn.click();
+            await until('abort settled', () => /abgebrochen/.test(st()));
+            log.push('ABORT status: ' + st());
 
-            const send = async (channel, label) => {
-                // Wait for the previous send to finish: handleChannel ignores clicks while busy.
-                await until(label + ' idle before', idle);
-                opened.length = 0;
-                captured.length = 0;
-                d.querySelector('.channel[data-channel="' + channel + '"]').click();
-                await until(label + ' pdf built', () => captured.length > 0);
-                await until(label + ' settled', idle);
-                log.push(label + ' status: ' + d.getElementById('share-status').textContent);
-                log.push(label + ' opened: ' + JSON.stringify(opened));
-                log.push(label + ' buttons re-enabled: ' +
-                    [...d.querySelectorAll('.channel')].map(b => b.disabled).join(','));
-            };
-
-            await send('email', 'EMAIL');
-            await send('whatsapp', 'WHATSAPP');
-            await send('signal', 'SIGNAL');
-
-            // Signal without a number must not claim a chat was opened.
-            d.getElementById('recipient-phone').value = '';
-            await send('signal', 'SIGNAL-NONUM');
-
-            // 8. Desktop without Web Share: the tab must be reserved on click and only then
-            // navigated, otherwise the popup blocker kills it after the PDF build.
-            Object.defineProperty(w.Navigator.prototype, 'canShare', {value: () => false, configurable: true});
-            Object.defineProperty(w.Navigator.prototype, 'share', {value: () => Promise.reject(new Error('no share')), configurable: true});
-            d.getElementById('recipient-phone').value = '+49 170 1234567';
-            dlg.close();
-            d.getElementById('send-btn').click();
-            await new Promise(r => setTimeout(r, 200));
-            log.push('no-share: direct-share disabled: ' + d.getElementById('channel-share').disabled);
-            await send('whatsapp', 'WHATSAPP-NOSHARE');
-
-            // Popup blocked entirely -> the status must carry a tappable fallback link.
-            w.open = () => null;
-            await send('whatsapp', 'WHATSAPP-BLOCKED');
-            log.push('fallback link: ' + (d.querySelector('#share-status a') || {}).textContent);
-
-            // Enter in a recipient field must not close the dialog.
-            d.getElementById('recipient-email').dispatchEvent(
-                new w.KeyboardEvent('keydown', {key: 'Enter', bubbles: true, cancelable: true}));
-            log.push('dialog still open after Enter: ' + dlg.open);
+            // 6d. No share sheet at all -> must fall back to a download and say why.
+            delete w.Navigator.prototype.share;
+            delete w.Navigator.prototype.canShare;
+            set('damagePlace', 'Ohne Teilen');
+            captured.length = 0;
+            sendBtn.click();
+            await until('fallback download', () => captured.length > 0);
+            await until('fallback settled', settled);
+            log.push('NOSHARE status: ' + st());
 
             log.push('DONE');
         } catch (err) {
