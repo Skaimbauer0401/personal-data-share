@@ -24,15 +24,7 @@
             <div class="grid">
                 <label class="field col-6">
                     <span>Art des Schadens</span>
-                    <select name="damageType">
-                        <option value="">Bitte wählen…</option>
-                        <option>Handy / Elektronik</option>
-                        <option>Fahrzeug / KFZ</option>
-                        <option>Wohnung / Hausrat</option>
-                        <option>Haftpflicht (Schaden bei Dritten)</option>
-                        <option>Reise / Gepäck</option>
-                        <option>Sonstiges</option>
-                    </select>
+                    <input name="damageType" type="text" placeholder="z. B. Handy / Elektronik, Fahrzeug, Hausrat"/>
                 </label>
                 <label class="field col-3">
                     <span>Datum des Schadens <b class="req">*</b></span>
@@ -43,7 +35,7 @@
                     <input name="damageTime" type="time"/>
                 </label>
                 <label class="field col-12">
-                    <span>Wo ist es passiert?</span>
+                    <span>Ort</span>
                     <input name="damagePlace" type="text" placeholder="z. B. Bahnhofstraße 12, 80331 München"/>
                 </label>
                 <label class="field col-6">
@@ -52,7 +44,7 @@
                 </label>
                 <label class="field col-6">
                     <span>Geschätzte Schadenhöhe</span>
-                    <input name="damageAmount" type="text" inputmode="decimal" placeholder="z. B. ca. 800 €"/>
+                    <input name="damageAmount" type="text" inputmode="decimal" placeholder="---€"/>
                 </label>
                 <label class="check col-6">
                     <input name="policeInformed" type="checkbox"/>
@@ -176,21 +168,29 @@
         </div>
 
         <div class="channels">
-            <button type="button" class="channel" data-channel="share" id="channel-share">
-                <span class="channel-icon">📎</span>
-                <span class="channel-text"><b>Direkt teilen</b><small>PDF wird als Datei angehängt</small></span>
+            <button type="button" class="channel primary" data-channel="share" id="channel-share">
+                <span class="channel-icon">📤</span>
+                <span class="channel-text"><b>Teilen</b><small id="channel-share-note">PDF wird angehängt – Sie wählen die App</small></span>
             </button>
+        </div>
+
+        <!-- mailto: and wa.me links cannot carry an attachment (no browser or app supports
+             it), so these routes send text only and the PDF has to be attached by hand. -->
+        <p class="hint channels-note" id="channels-note">Ohne Anhang – das PDF wird heruntergeladen und muss
+            selbst angehängt werden:</p>
+
+        <div class="channels">
             <button type="button" class="channel" data-channel="email">
                 <span class="channel-icon">✉️</span>
-                <span class="channel-text"><b>E-Mail</b><small>Öffnet Ihr Mailprogramm</small></span>
+                <span class="channel-text"><b>E-Mail</b><small>Öffnet Ihr Mailprogramm, nur mit Text</small></span>
             </button>
             <button type="button" class="channel" data-channel="whatsapp">
                 <span class="channel-icon">💬</span>
-                <span class="channel-text"><b>WhatsApp</b><small>Öffnet den Chat</small></span>
+                <span class="channel-text"><b>WhatsApp</b><small>Öffnet den Chat, nur mit Text</small></span>
             </button>
             <button type="button" class="channel" data-channel="signal">
                 <span class="channel-icon">🔒</span>
-                <span class="channel-text"><b>Signal</b><small>Öffnet den Chat</small></span>
+                <span class="channel-text"><b>Signal</b><small>Öffnet den Chat, nur mit Text</small></span>
             </button>
         </div>
 
@@ -248,8 +248,8 @@
                 <input data-field="email" type="email" inputmode="email"/>
             </label>
             <label class="field col-12">
-                <span>Versicherung / Kennzeichen</span>
-                <input data-field="insurance" type="text" placeholder="z. B. M-AB 1234 oder Versicherung + Nummer"/>
+                <span>Versicherung</span>
+                <input data-field="insurance" type="text" placeholder="z. B. Versicherung + Nummer"/>
             </label>
             <label class="field col-12">
                 <span>Anmerkung</span>

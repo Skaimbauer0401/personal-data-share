@@ -479,6 +479,26 @@ body:has(dialog[open]) {
     cursor: not-allowed;
 }
 
+/* The share sheet is the only route that can carry the PDF, so it leads visually. */
+.channel.primary {
+    border-color: var(--accent);
+    background: rgba(37, 99, 235, .06);
+    min-height: 66px;
+}
+
+.channel.primary b {
+    font-size: 17px;
+}
+
+.channel.primary:disabled {
+    border-color: var(--border);
+    background: #fff;
+}
+
+.channels-note {
+    margin: 18px 0 0;
+}
+
 .channel-icon {
     font-size: 22px;
     line-height: 1;

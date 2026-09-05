@@ -121,6 +121,62 @@
             log.push('direct-share disabled: ' + d.getElementById('channel-share').disabled);
             log.push('recipient email prefill: "' + d.getElementById('recipient-email').value + '"');
 
+            // 7. Send channels. Stub the outward-facing APIs so nothing really leaves.
+            const opened = [];
+            w.open = (url) => { opened.push(url); return {closed: false, opener: null, location: {replace: u => opened.push('replace:' + u)}, close: () => {}}; };
+            // location.href cannot be stubbed (unforgeable); a mailto: with no registered
+            // handler is a no-op in this browser, so let it fire and just watch the status.
+
+            d.getElementById('recipient-email').value = 'berater@example.com';
+            d.getElementById('recipient-phone').value = '+49 170 1234567';
+
+            const shareStatusText = () => d.getElementById('share-status').textContent;
+            const idle = () => ![...d.querySelectorAll('.channel')].some(b => b.dataset.wasDisabled !== undefined && b.disabled && b.dataset.wasDisabled === '')
+                && !shareStatusText().includes('wird erstellt');
+
+            const send = async (channel, label) => {
+                // Wait for the previous send to finish: handleChannel ignores clicks while busy.
+                await until(label + ' idle before', idle);
+                opened.length = 0;
+                captured.length = 0;
+                d.querySelector('.channel[data-channel="' + channel + '"]').click();
+                await until(label + ' pdf built', () => captured.length > 0);
+                await until(label + ' settled', idle);
+                log.push(label + ' status: ' + d.getElementById('share-status').textContent);
+                log.push(label + ' opened: ' + JSON.stringify(opened));
+                log.push(label + ' buttons re-enabled: ' +
+                    [...d.querySelectorAll('.channel')].map(b => b.disabled).join(','));
+            };
+
+            await send('email', 'EMAIL');
+            await send('whatsapp', 'WHATSAPP');
+            await send('signal', 'SIGNAL');
+
+            // Signal without a number must not claim a chat was opened.
+            d.getElementById('recipient-phone').value = '';
+            await send('signal', 'SIGNAL-NONUM');
+
+            // 8. Desktop without Web Share: the tab must be reserved on click and only then
+            // navigated, otherwise the popup blocker kills it after the PDF build.
+            Object.defineProperty(w.Navigator.prototype, 'canShare', {value: () => false, configurable: true});
+            Object.defineProperty(w.Navigator.prototype, 'share', {value: () => Promise.reject(new Error('no share')), configurable: true});
+            d.getElementById('recipient-phone').value = '+49 170 1234567';
+            dlg.close();
+            d.getElementById('send-btn').click();
+            await new Promise(r => setTimeout(r, 200));
+            log.push('no-share: direct-share disabled: ' + d.getElementById('channel-share').disabled);
+            await send('whatsapp', 'WHATSAPP-NOSHARE');
+
+            // Popup blocked entirely -> the status must carry a tappable fallback link.
+            w.open = () => null;
+            await send('whatsapp', 'WHATSAPP-BLOCKED');
+            log.push('fallback link: ' + (d.querySelector('#share-status a') || {}).textContent);
+
+            // Enter in a recipient field must not close the dialog.
+            d.getElementById('recipient-email').dispatchEvent(
+                new w.KeyboardEvent('keydown', {key: 'Enter', bubbles: true, cancelable: true}));
+            log.push('dialog still open after Enter: ' + dlg.open);
+
             log.push('DONE');
         } catch (err) {
             log.push('TEST ERROR: ' + (err && err.stack || err));

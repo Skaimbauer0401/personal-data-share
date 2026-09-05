@@ -201,7 +201,7 @@
                 w.row('Adresse', [p.street, [p.zip, p.city].filter(Boolean).join(' ')].filter(Boolean).join(', '));
                 w.row('Telefon', p.phone);
                 w.row('E-Mail', p.email);
-                w.row('Vers./Kennz.', p.insurance);
+                w.row('Versicherung', p.insurance);
                 w.row('Anmerkung', p.note);
                 w.gap(5);
             });
