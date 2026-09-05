@@ -24,6 +24,20 @@
         el.className = 'status' + (type ? ' ' + type : '');
     }
 
+    // Firefox on Android ignores a programmatic click on <a download>, so a saved file can
+    // never appear without the user tapping something themselves. Every download message
+    // therefore carries a real link as well.
+    function setStatusWithLink(el, message, url, filename, linkText) {
+        setStatus(el, message + ' ');
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        link.target = '_blank';
+        link.rel = 'noopener';
+        link.textContent = linkText;
+        el.appendChild(link);
+    }
+
     /* ---------------- people ---------------- */
 
     function renumberPeople() {
@@ -249,6 +263,8 @@
         };
     }
 
+    // Returns the object URL so callers can also expose it as a tappable link; kept alive
+    // long enough for the user to reach it.
     function downloadBlob(blob, filename) {
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
@@ -257,7 +273,8 @@
         document.body.appendChild(link);
         link.click();
         link.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 10000);
+        setTimeout(() => URL.revokeObjectURL(url), 120000);
+        return url;
     }
 
     function sizeNote(blob) {
@@ -338,9 +355,9 @@
     }
 
     function fallbackToDownload(data, reason) {
-        downloadBlob(data.blob, data.filename);
-        setStatus(status, reason + ' Das PDF \u201e' + data.filename
-            + '\u201c wurde stattdessen heruntergeladen.' + sizeNote(data.blob), 'error');
+        const url = downloadBlob(data.blob, data.filename);
+        setStatusWithLink(status, reason + ' Das PDF wurde stattdessen heruntergeladen.'
+            + sizeNote(data.blob), url, data.filename, 'PDF \u00f6ffnen');
     }
 
     // `retryable` marks the attempt that had to build the PDF first; a refusal there is
@@ -402,21 +419,29 @@
         if (!validate()) return;
         withBusy(downloadBtn, 'PDF wird erstellt…', async () => {
             const {blob, filename} = await generatePdf();
-            downloadBlob(blob, filename);
-            setStatus(status, `PDF „${filename}" wurde heruntergeladen.${sizeNote(blob)}`);
+            const url = downloadBlob(blob, filename);
+            setStatusWithLink(status, `PDF „${filename}“ wurde heruntergeladen.${sizeNote(blob)}`,
+                url, filename, 'PDF öffnen');
         });
     });
 
     const sendBtn = document.getElementById('send-btn');
     sendBtn.addEventListener('click', () => {
         if (!validate()) return;
+        // Set synchronously so the tap always produces visible feedback, even if the PDF
+        // build below stalls on a slow phone.
+        setStatus(status, 'Meldung wird vorbereitet\u2026', 'busy');
         if (prepared) {
             // No await before this call, so the tap's activation still counts.
             shareReport(prepared, false);
             return;
         }
         withBusy(sendBtn, 'PDF wird erstellt\u2026', async () => {
-            prepared = await preparePdf();
+            prepared = await Promise.race([
+                preparePdf(),
+                new Promise((_, reject) => setTimeout(
+                    () => reject(new Error('Zeit\u00fcberschreitung beim Erstellen des PDFs')), 30000))
+            ]);
             await shareReport(prepared, true);
         });
     });
@@ -441,4 +466,15 @@
     form.addEventListener('change', dropPrepared);
 
     form.addEventListener('submit', event => event.preventDefault());
+
+    // There is no console on a phone, so anything unexpected has to be readable in the page
+    // itself - otherwise a failure looks like the button simply doing nothing.
+    window.addEventListener('error', event => {
+        setStatus(status, 'Unerwarteter Fehler: ' + (event.message || 'unbekannt'), 'error');
+    });
+    window.addEventListener('unhandledrejection', event => {
+        const reason = event.reason;
+        setStatus(status, 'Unerwarteter Fehler: '
+            + ((reason && reason.message) || reason || 'unbekannt'), 'error');
+    });
 })();

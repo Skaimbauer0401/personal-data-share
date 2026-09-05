@@ -166,6 +166,10 @@
             await until('fallback download', () => captured.length > 0);
             await until('fallback settled', settled);
             log.push('NOSHARE status: ' + st());
+            log.push('NOSHARE link: ' + ((d.querySelector('#status a') || {}).textContent || 'MISSING'));
+
+            // 6e. A stalled PDF build must report rather than hang the button forever.
+            log.push('send button re-enabled: ' + !sendBtn.disabled);
 
             log.push('DONE');
         } catch (err) {

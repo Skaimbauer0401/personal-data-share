@@ -257,6 +257,17 @@ input.invalid, textarea.invalid, select.invalid {
     color: var(--muted);
 }
 
+/* Where a programmatic download is ignored (Firefox on Android), this link is the only
+   way to reach the file, so it has to be an obvious tap target. */
+.status a {
+    color: var(--accent);
+    font-weight: 600;
+    text-decoration: underline;
+    display: inline-block;
+    padding: 4px 0;
+    min-height: 24px;
+}
+
 /* ---------- people ---------- */
 
 .people-list:empty {
